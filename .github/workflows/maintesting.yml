@@ -1,13 +1,33 @@
-name: TestingDEMO
-
+name: TestDEMO
 on:
   push:
     branches: [ "main" ]
+    paths:
+      - "testing.py"
+      - "add.py"
 
 jobs:
-  deploy:
+  test:
     runs-on: ubuntu-latest
- 
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt   
+
+      - name: Run unit tests (testing.py)
+        run: python -m unittest -v add.py
+
+  deploy:
+    needs: test
+    if: ${{ needs.test.result == 'success' }}
+    runs-on: ubuntu-latest
+    
     permissions:
       contents: write
     steps:
@@ -16,7 +36,8 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.WORKFLOW_SECRET }}
 
-      - run: |
+      - name: Sync dev → production
+        run: |
           git config user.name "${GITHUB_ACTOR}"
           git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
           git fetch origin
